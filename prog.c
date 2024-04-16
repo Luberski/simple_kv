@@ -202,7 +202,6 @@ ErrBox *find_key(const char *key) {
   free(line);
   // if the file is empty or function did not find the key
   // it returns SUCCESS with no value
-  printf("lol4\n");
   return ErrBox_init(RETURN_TYPE_SUCCESS, NULL, NULL);
 }
 
@@ -233,11 +232,21 @@ ErrBox *action_put(const char *key, const char *value) {
   return ErrBox_init(RETURN_TYPE_SUCCESS, NULL, NULL);
 }
 
-/* ErrBox *action_get(const char *key) { */
-/*   lol; */
-/*   return; */
-/* } */
-/**/
+ErrBox *action_get(const char *key) {
+  ErrBox *search = find_key(key);
+
+  if (search->ret_outcome == RETURN_TYPE_SUCCESS) {
+    if (search->ret_value != NULL) {
+      fprintf(stdout, "Key: %s, Value: %s", ((KVBox *)search->ret_value)->key,
+              ((KVBox *)search->ret_value)->value);
+    } else {
+      free(search);
+      return ErrBox_init(RETURN_TYPE_ERROR, NULL, "Key not found");
+    }
+  }
+  return search;
+}
+
 /* ErrBox *action_delete(const char *key) { */
 /*   lol; */
 /*   return; */
@@ -288,7 +297,7 @@ int main(int argc, char *argv[]) {
             action_put(arguments_struct->args[1], arguments_struct->args[2]);
         break;
       case 'g':
-        /* action_get(arguments_struct->args[1]); */
+        output = action_get(arguments_struct->args[1]);
         break;
       case 'd':
         /* action_delete(arguments_struct->args[1]); */
