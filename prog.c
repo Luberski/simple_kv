@@ -277,6 +277,8 @@ ErrBox *action_all() {
       free(kv_data->value);
       free(kv_data->key);
     } else {
+      fclose(database);
+      free(line);
       return data;
     }
 
@@ -341,8 +343,10 @@ int main(int argc, char *argv[]) {
         return 1;
       }
 
-      if (output != NULL && output->ret_outcome != RETURN_TYPE_SUCCESS) {
-        printf("%s\n", output->err_desc);
+      if (output != NULL) {
+        if (output->ret_outcome != RETURN_TYPE_SUCCESS) {
+          printf("%s\n", output->err_desc);
+        }
         ErrBox_free(output);
       }
     } else {
