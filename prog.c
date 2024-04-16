@@ -252,11 +252,15 @@ ErrBox *action_get(const char *key) {
 /*   return; */
 /* } */
 /**/
-/* ErrBox *action_clear() { */
-/*   lol; */
-/*   return; */
-/* } */
-/**/
+ErrBox *action_clear() {
+  FILE *file = fopen(KV_DATABASE_PATH, "w");
+  if (file == NULL) {
+    return ErrBox_init(RETURN_TYPE_ERROR, NULL, "Fopen failed\n");
+  }
+
+  return ErrBox_init(RETURN_TYPE_SUCCESS, NULL, NULL);
+}
+
 ErrBox *action_all() {
   FILE *database = fopen(KV_DATABASE_PATH, "r");
   if (database == NULL) {
@@ -327,7 +331,7 @@ int main(int argc, char *argv[]) {
         /* action_delete(arguments_struct->args[1]); */
         break;
       case 'c':
-        /* action_clear(); */
+        output = action_clear();
         break;
       case 'a':
         output = action_all();
