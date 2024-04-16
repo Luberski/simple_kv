@@ -257,10 +257,34 @@ ErrBox *action_get(const char *key) {
 /*   return; */
 /* } */
 /**/
-/* ErrBox *action_all() { */
-/*   lol; */
-/*   return; */
-/* } */
+ErrBox *action_all() {
+  FILE *database = fopen(KV_DATABASE_PATH, "r");
+  if (database == NULL) {
+    return ErrBox_init(RETURN_TYPE_ERROR, NULL, "fopen failed\n");
+  }
+
+  size_t line_size = 0;
+  char *line = NULL;
+  while (getline(&line, &line_size, database) != -1) {
+    ErrBox *data = KVBox_init_from_data(line);
+    if (data->ret_outcome == RETURN_TYPE_SUCCESS) {
+      KVBox *kv_data = data->ret_value;
+      fprintf(stdout, "Key: %s, Value: %s", kv_data->key, kv_data->value);
+      free(kv_data->value);
+      free(kv_data->key);
+    } else {
+      return data;
+    }
+
+    ErrBox_free(data);
+  }
+
+  fclose(database);
+  free(line);
+  // if the file is empty or function did not find the key
+  // it returns SUCCESS with no value
+  return ErrBox_init(RETURN_TYPE_SUCCESS, NULL, NULL);
+}
 
 int main(int argc, char *argv[]) {
   if (argc == 1) {
@@ -306,17 +330,17 @@ int main(int argc, char *argv[]) {
         /* action_clear(); */
         break;
       case 'a':
-        /* action_all(); */
+        output = action_all();
         break;
       default:
         fprintf(stdout, "Invalid argument\n");
         return 1;
       }
 
-      if (output->ret_outcome != RETURN_TYPE_SUCCESS) {
+      if (output != NULL && output->ret_outcome != RETURN_TYPE_SUCCESS) {
         printf("%s\n", output->err_desc);
+        ErrBox_free(output);
       }
-      free(output);
     } else {
       printf("%s\n", split_output->err_desc);
     }
@@ -326,9 +350,7 @@ int main(int argc, char *argv[]) {
       free(arguments_struct->args[args_iter]);
     }
     free(arguments_struct->args);
-    free(split_output->err_desc);
-    free(split_output->ret_value);
-    free(split_output);
+    ErrBox_free(split_output);
   }
   return 0;
 }
