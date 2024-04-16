@@ -68,13 +68,13 @@ ErrBox *KVBox_init_from_data(const char *data) {
   size_t key_size = 0;
   for (size_t data_iter = 0; data_iter < strlen(data); data_iter++) {
     if (data[data_iter] == ',') {
-      output->key = malloc(data_iter * sizeof(char));
-      output->value = malloc(((strlen(data) - data_iter) + 1) * sizeof(char));
+      output->key = malloc((data_iter + 1) * sizeof(char));
+      output->value = malloc((strlen(data) - data_iter) * sizeof(char));
 
-      memset(output->key, '\0', data_iter);
-      memset(output->value, '\0', ((strlen(data) - data_iter) + 1));
+      memset(output->key, '\0', data_iter + 1);
+      memset(output->value, '\0', (strlen(data) - data_iter));
 
-      strncpy(output->key, data, data_iter - 1);
+      strncpy(output->key, data, data_iter);
       strcpy(output->value, data + (data_iter + 1));
     }
   }
@@ -172,47 +172,54 @@ ErrBox *find_key(const char *key) {
 
   size_t line_size = 0;
   char *line = NULL;
-  while (getline(&line, &line_size, database)) {
+  while (getline(&line, &line_size, database) != -1) {
     if (line[0] == '\0') {
       break;
     }
 
-    printf("line: %s\n", line);
     ErrBox *data = KVBox_init_from_data(line);
     if (data->ret_outcome == RETURN_TYPE_SUCCESS) {
       KVBox *kv_data = data->ret_value;
       if (!strcmp(kv_data->key, key)) {
         fclose(database);
         free(line);
+        line = NULL;
         return data;
       } else {
         free(kv_data->value);
         free(kv_data->key);
-        free(kv_data);
+        ErrBox_free(data);
       }
     } else {
       fclose(database);
+      free(line);
+      line = NULL;
       return data;
     }
   }
 
   fclose(database);
+  free(line);
+  // if the file is empty or function did not find the key
+  // it returns SUCCESS with no value
+  printf("lol4\n");
   return ErrBox_init(RETURN_TYPE_SUCCESS, NULL, NULL);
 }
 
 ErrBox *action_put(const char *key, const char *value) {
+  ErrBox *data = find_key(key);
+
   FILE *database = fopen(KV_DATABASE_PATH, "a+");
   ErrBox *output = NULL;
   if (database == NULL) {
     return ErrBox_init(RETURN_TYPE_ERROR, NULL, "fopen failed\n");
   }
 
-  ErrBox *data = find_key(key);
   if (data->ret_outcome == RETURN_TYPE_SUCCESS) {
     if (data->ret_value != NULL) {
       free(data);
       fclose(database);
-      return ErrBox_init(RETURN_TYPE_ERROR, NULL, "They key already exists\n");
+      return ErrBox_init(RETURN_TYPE_ERROR, NULL, "The key already exists\n");
     } else {
       // Put into file
       fprintf(database, "%s,%s\n", key, value);
@@ -245,7 +252,7 @@ ErrBox *action_put(const char *key, const char *value) {
 /*   lol; */
 /*   return; */
 /* } */
-/**/
+
 int main(int argc, char *argv[]) {
   if (argc == 1) {
     print_usage();
@@ -256,6 +263,14 @@ int main(int argc, char *argv[]) {
     if (split_output == NULL) {
       fprintf(stdout, "Null ptr received: 1\n");
       return 1;
+    }
+
+    // check if file exists, create if not
+    FILE *file = fopen(KV_DATABASE_PATH, "r");
+    if (file == NULL) {
+      fclose(fopen(KV_DATABASE_PATH, "a"));
+    } else {
+      fclose(file);
     }
 
     Arguments *arguments_struct = NULL;
