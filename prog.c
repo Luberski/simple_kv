@@ -241,17 +241,64 @@ ErrBox *action_get(const char *key) {
               ((KVBox *)search->ret_value)->value);
     } else {
       free(search);
-      return ErrBox_init(RETURN_TYPE_ERROR, NULL, "Key not found");
+      return ErrBox_init(RETURN_TYPE_ERROR, NULL, "Key not found\n");
     }
   }
   return search;
 }
 
-/* ErrBox *action_delete(const char *key) { */
-/*   lol; */
-/*   return; */
-/* } */
-/**/
+ErrBox *action_delete(const char *key) {
+  ErrBox *found_key = find_key(key);
+
+  if (found_key != NULL && found_key->ret_outcome != RETURN_TYPE_ERROR &&
+      found_key->ret_value != NULL) {
+    free(((KVBox *)found_key->ret_value)->key);
+    free(((KVBox *)found_key->ret_value)->value);
+    ErrBox_free(found_key);
+
+    // delete key, this is the fastest method to do I can think of without
+    // having to rewrite the whole program
+    const char *temp_kv_database_name = "temp_kv_database.txt";
+    FILE *new_kv_database = fopen(temp_kv_database_name, "w");
+    FILE *old_kv_database = fopen(KV_DATABASE_PATH, "r");
+    if (new_kv_database == NULL || old_kv_database == NULL) {
+      return ErrBox_init(RETURN_TYPE_ERROR, NULL, "fopen failed\n");
+    }
+
+    size_t line_size = 0;
+    char *line = NULL;
+    while (getline(&line, &line_size, old_kv_database) != -1) {
+      char *line_copy = malloc((strlen(line) + 1) * sizeof(char));
+      strcpy(line_copy, line);
+      // Could've used it earlier, but oh well, happens
+      char *token = strsep(&line_copy, ",");
+      if (strcmp(token, key) == 0) {
+        free(token);
+        continue;
+      }
+      fprintf(new_kv_database, "%s", line);
+      free(token);
+    }
+    free(line);
+    fclose(old_kv_database);
+    fclose(new_kv_database);
+
+    if (remove(KV_DATABASE_PATH) == -1) {
+      return ErrBox_init(RETURN_TYPE_ERROR, NULL, "remove failed\n");
+    }
+    if (rename(temp_kv_database_name, KV_DATABASE_PATH) != 0) {
+      return ErrBox_init(RETURN_TYPE_ERROR, NULL, "rename failed\n");
+    }
+  } else if (found_key->ret_outcome == RETURN_TYPE_ERROR) {
+    return found_key;
+  } else {
+    ErrBox_free(found_key);
+    return ErrBox_init(RETURN_TYPE_ERROR, NULL, "Key was not found\n");
+  }
+
+  return ErrBox_init(RETURN_TYPE_SUCCESS, NULL, NULL);
+}
+
 ErrBox *action_clear() {
   FILE *file = fopen(KV_DATABASE_PATH, "w");
   if (file == NULL) {
@@ -330,7 +377,7 @@ int main(int argc, char *argv[]) {
         output = action_get(arguments_struct->args[1]);
         break;
       case 'd':
-        /* action_delete(arguments_struct->args[1]); */
+        output = action_delete(arguments_struct->args[1]);
         break;
       case 'c':
         output = action_clear();
