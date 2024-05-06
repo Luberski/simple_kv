@@ -36,7 +36,6 @@ Arguments *Arguments_init(char **args, unsigned char arg_count) {
 
 void ErrBox_free(ErrBox *self) {
   free(self->ret_value);
-  free(self->err_desc);
   free(self);
 }
 
@@ -52,6 +51,7 @@ ErrBox *ErrBox_init(RETURN_TYPE outcome, void *value, char *description) {
   ErrBox *ret = malloc(sizeof(ErrBox));
 
   ret->ret_outcome = outcome;
+
   ret->ret_value = value;
   ret->err_desc = description;
   return ret;
@@ -237,11 +237,12 @@ ErrBox *action_get(const char *key) {
 
   if (search->ret_outcome == RETURN_TYPE_SUCCESS) {
     if (search->ret_value != NULL) {
-      fprintf(stdout, "Key: %s, Value: %s", ((KVBox *)search->ret_value)->key,
+      fprintf(stdout, "%s,%s", ((KVBox *)search->ret_value)->key,
               ((KVBox *)search->ret_value)->value);
     } else {
       free(search);
-      return ErrBox_init(RETURN_TYPE_ERROR, NULL, "Key not found\n");
+      fprintf(stdout, "%s not found\n", key);
+      return ErrBox_init(RETURN_TYPE_SUCCESS, NULL, NULL);
     }
   }
   return search;
@@ -389,12 +390,11 @@ int main(int argc, char *argv[]) {
         fprintf(stdout, "Invalid argument\n");
         return 1;
       }
-
       if (output != NULL) {
         if (output->ret_outcome != RETURN_TYPE_SUCCESS) {
           printf("%s\n", output->err_desc);
         }
-        ErrBox_free(output);
+        /* ErrBox_free(output); */
       }
     } else {
       printf("%s\n", split_output->err_desc);
